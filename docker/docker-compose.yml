@@ -28,13 +28,13 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: cursinho_popular
+    container_name: explicaaso_pgadmin
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@explicaaso.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5051:80"
+      - "5050:80"
     depends_on:
       - db
 

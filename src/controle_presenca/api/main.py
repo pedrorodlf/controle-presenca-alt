@@ -1,16 +1,17 @@
-from src.controle_presenca.api.routes import sgdi
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from fastapi.staticfiles import StaticFiles
+# pyrefly: ignore [missing-import]
 from fastapi.responses import FileResponse
 import os
 
-from .routes import presenca, sessao, alunos
- 
+from .routes import presenca, sessao, alunos, sgdi
 
 app = FastAPI(
-    title="Controle de Presença e SGDI",
+    title="ExpliCAASO API",
     description="API para controle de presença e gestão de alunos",
-    version="2.0.0"
+    version="1.0.0"
 )
 
 # Inclui as rotas da API
@@ -34,7 +35,7 @@ def root():
     return {
         "status": "SUCESSO!",
         "mensagem": "A API e o Banco de Dados estão conversando!",
-        "versao": "2.0.0"
+        "versao": "1.0.0"
     }
 
 @app.get("/health")
