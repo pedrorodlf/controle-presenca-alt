@@ -19,15 +19,13 @@ app.include_router(presenca.router)
 app.include_router(sessao.router)
 app.include_router(alunos.router)
 app.include_router(sgdi.router)
-
-# Servir arquivos estáticos do frontend
 frontend_path = os.path.join(os.path.dirname(__file__), "../../../frontend")
-if os.path.exists(frontend_path):
-    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
-    
-    @app.get("/")
-    async def serve_frontend():
+
+@app.get("/")
+async def serve_frontend():
+    if os.path.exists(frontend_path):
         return FileResponse(os.path.join(frontend_path, "index.html"))
+    return {"status": "erro", "mensagem": "Frontend não encontrado"}
 
 # Rota da API (mantém compatibilidade)
 @app.get("/api")
@@ -42,3 +40,7 @@ def root():
 def health():
     """Endpoint para verificar se a API está funcionando"""
     return {"status": "healthy", "servico": "ExpliCAASO API"}
+
+# Servir arquivos estáticos do frontend (deve ser o último a ser montado)
+if os.path.exists(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
