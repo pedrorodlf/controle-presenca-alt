@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from src.controle_presenca.database.connection import SessionLocal
 from src.controle_presenca.services.presenca_service import PresencaService
 from src.controle_presenca.services.sgdi_service import SGDiService
+from src.controle_presenca.database.models import Aluno
 
 # Constantes para evitar duplicação de Strings (Exigência do SonarCloud)
 MSG_ESCOLHA = "\nEscolha: "
@@ -168,17 +169,160 @@ def menu_leitor():
             case '5': bater_ponto()
             case '6': break
 
+def gerar_lista_dados_cli():
+    with SessionLocal() as db:
+        svc = SGDiService(db)
+        questoes = svc.obter_questoes_disponiveis()
+        if not questoes:
+            print("\n⚠️ Nenhuma questão socioeconômica encontrada no banco de dados!")
+            _pausar()
+            return
+        print("\n--- QUESTÕES DISPONÍVEIS ---")
+        for i, q in enumerate(questoes, 1):
+            print(f"{i}- {q['questao']}")
+        
+        jk = input("\nA sua lista de dados deve conter as informações de cada aluno para quantas questões?: ").strip()
+        if not jk.isdigit():
+            print("❌ Quantidade inválida.")
+            _pausar()
+            return
+        jk = int(jk)
+        
+        questoes_selecionadas = []
+        for i in range(jk):
+            num = input(f"Insira o número da questão {i+1} da sua lista de dados: ").strip()
+            if num.isdigit() and 1 <= int(num) <= len(questoes):
+                q_num = questoes[int(num)-1]["pergunta_numero"]
+                questoes_selecionadas.append(q_num)
+            else:
+                print("⚠️ Número inválido. Pulando...")
+                
+        if not questoes_selecionadas:
+            print("❌ Nenhuma questão válida selecionada.")
+            _pausar()
+            return
+            
+        colunas, linhas = svc.obter_dados_exportacao(questoes_selecionadas)
+        
+        from src.controle_presenca.utils.excel_exporter import ExcelExporter
+        os.makedirs("Cartola mágica", exist_ok=True)
+        caminho_salvar = os.path.join("Cartola mágica", "ListaDeDados.xlsx")
+        ExcelExporter.gerar_planilha(colunas, linhas, caminho_salvar)
+        
+        print(f"\n✅ A lista de dados já foi gerada e você pode acessá-la na pasta \"Cartola mágica\"")
+    _pausar()
+
+def atualizar_presencas_leitor_cli():
+    from src.controle_presenca.cli.colors import Colors, print_c
+    print("\n⏳ Iniciando atualização de presenças do leitor...")
+    with SessionLocal() as db:
+        svc = SGDiService(db)
+        logs = svc.atualizar_presencas_leitor_service()
+        print("\n--- RELATÓRIO DE ATUALIZAÇÃO ---")
+        for log in logs:
+            if log.startswith("💙"):
+                print_c(log, Colors.BLUE)
+            elif log.startswith("💚"):
+                print_c(log, Colors.GREEN)
+            elif log.startswith("❤️"):
+                print_c(log, Colors.RED)
+            elif log.startswith("⚠️"):
+                print_c(log, Colors.YELLOW)
+            else:
+                print_c(log, Colors.MAGENTA)
+    _pausar()
+
+def modificar_dados_presenca_cli():
+    from src.controle_presenca.cli.colors import Colors, print_c
+    with SessionLocal() as db:
+        svc = SGDiService(db)
+        alunos = db.query(Aluno).filter(Aluno.status == 'ATIVADO').order_by(Aluno.id.asc()).all()
+        
+        if not alunos:
+            print("\n⚠️ Nenhum discente cadastrado ou ativo no sistema.")
+            _pausar()
+            return
+            
+        print("\n--- ALUNOS ATIVOS ---")
+        print(f"{'ID':<4} | {'Nome':<30} | {'Cartão':<8} | {'Horas Ef.':<10} | {'Horas Tot.':<10} | {'Presença':<8}")
+        print("-" * 80)
+        for a in alunos:
+            h_tot = float(a.carga_horaria_total or 0.0)
+            perc = float(a.percentual_presenca or 0.0)
+            h_ef = (perc * h_tot) / 100.0
+            cartao_str = str(a.cartao_id) if a.cartao_id else "-"
+            print(f"{a.id:<4} | {a.nome[:30]:<30} | {cartao_str:<8} | {h_ef:<10.1f} | {h_tot:<10.1f} | {perc:<6.1f}%")
+            
+        print("\nOs dados de presença que você deseja modificar são pertencentes a quais cartões?")
+        print("Insira os números dos cartões (separados por vírgula. Ex: 1,5,15...).")
+        print("Caso queira modificar todos, digite 't'. Para sair, digite 's'.")
+        
+        cartoes_input = input("Sua resposta: ").strip().lower()
+        if cartoes_input == 's':
+            return
+            
+        cartoes_selecionados = []
+        if cartoes_input == 't':
+            cartoes_selecionados = [a.cartao_id for a in alunos if a.cartao_id is not None]
+        else:
+            for token in cartoes_input.split(','):
+                t = token.strip()
+                if t.isdigit():
+                    cartoes_selecionados.append(int(t))
+                    
+        if not cartoes_selecionados:
+            print("❌ Nenhum cartão selecionado.")
+            _pausar()
+            return
+            
+        print("\nVocê deseja conceder/retirar dos alunos horas de presença efetivas ou absolutas?")
+        print("Digite 'e' para efetivas ou qualquer outra tecla para absolutas.")
+        tipo = input("Resposta: ").strip().lower()
+        
+        horas_str = input("\nInsira o número de horas (número negativo para retirar): ").strip()
+        try:
+            horas = float(horas_str)
+        except ValueError:
+            print("❌ Valor de horas inválido.")
+            _pausar()
+            return
+            
+        acertos, erros = svc.modificar_dados_presenca_service(cartoes_selecionados, horas, tipo)
+        
+        print("\n--- ALTERAÇÕES REALIZADAS ---")
+        for item in acertos:
+            tipo_str = "efetivas" if tipo == 'e' else "absolutas"
+            var = item["variacao"]
+            color = Colors.GREEN if var >= 0 else Colors.RED
+            
+            print_c(
+                f"Modificação de {var} horas {tipo_str} na presença de {item['nome'].upper()} (Cartão: {item['cartao']}) realizada com sucesso.", 
+                color
+            )
+            print_c(
+                f"Antigo percentual: {item['pant']}% | Novo percentual: {item['pmod']}%", 
+                Colors.CYAN
+            )
+            
+        if erros:
+            print(f"\n⚠️ Lista de entradas não reconhecidas: {erros}")
+            
+    _pausar()
+
 def menu_sgdi():
     while True:
         limpar_tela()
         print("--- SGDi (Gestor de Discentes) ---")
         print("1. Ver Ranking Socioeconômico")
-        print("2. Aprovar Candidatos (Linha de Corte)")
+        print("2. Registrar Corte de Candidatos (Linha de Corte)")
         print("3. Efetivar Matrícula (Gerar Aluno)")
-        print("4. Importar Candidatos de Planilha")
-        print("5. Pesquisar Candidato ou Aluno")
-        print("6. Excluir Candidato / Desativar Aluno")
-        print("7. Voltar")
+        print("4. Gerar Lista de Dados (Legado/Customizado)")
+        print("5. Atualizar Presenças do Leitor (Google Drive/Planilha)")
+        print("6. Modificar Dados de Freqüência (Ajuste de Horas)")
+        print("7. Importar Candidatos de Planilha")
+        print("8. Pesquisar Candidato ou Aluno")
+        print("9. Excluir Candidato / Desativar Aluno")
+        print("10. Voltar")
         
         opcao = input(MSG_ESCOLHA).strip()
         
@@ -186,10 +330,13 @@ def menu_sgdi():
             case '1': exibir_ranking_sgdi()
             case '2': aprovar_candidatos_sgdi()
             case '3': efetivar_matricula_sgdi()
-            case '4': importar_candidatos_planilha_cli()
-            case '5': pesquisar_candidato_aluno_cli()
-            case '6': remover_candidato_aluno_cli()
-            case '7': break
+            case '4': gerar_lista_dados_cli()
+            case '5': atualizar_presencas_leitor_cli()
+            case '6': modificar_dados_presenca_cli()
+            case '7': importar_candidatos_planilha_cli()
+            case '8': pesquisar_candidato_aluno_cli()
+            case '9': remover_candidato_aluno_cli()
+            case '10': break
 
 def executar_menu():
     while True:

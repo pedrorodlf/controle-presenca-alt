@@ -30,6 +30,7 @@
             <button onclick="switchGestorTab('frequencia')" id="gtab-frequencia" class="gtab-btn active">📋 Discentes & Frequência</button>
             <button onclick="switchGestorTab('sgdi')" id="gtab-sgdi" class="gtab-btn">👥 Processo Seletivo (SGDi)</button>
             <button onclick="switchGestorTab('auditoria')" id="gtab-auditoria" class="gtab-btn">🔐 Histórico & Auditoria</button>
+            <button onclick="switchGestorTab('busca')" id="gtab-busca" class="gtab-btn">🔍 Busca Avançada & Relatórios</button>
         </div>
 
         <!-- Alertas Globais -->
@@ -68,23 +69,87 @@
                     </div>
                 </div>
 
-                <!-- Direita: Cadastro Manual -->
-                <div class="card flex-self-start">
-                    <div class="card-header">
-                        <span class="card-icon">➕</span>
-                        <h2>Cadastro Manual de Aluno</h2>
+                <!-- Direita: Controles e Ajustes (Opções 5 e 6) -->
+                <div class="leitor-controles-col flex-self-start" style="width: 100%;">
+                    
+                    <!-- 1. Cadastro Manual -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-icon">➕</span>
+                            <h2>Cadastro Manual de Aluno</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Nome Completo</label>
+                                <input type="text" id="aluno-nome" placeholder="Ex: João da Silva">
+                            </div>
+                            <div class="form-group">
+                                <label>Número do Cartão</label>
+                                <input type="number" id="aluno-cartao" placeholder="ID de 6 dígitos do cartão físico">
+                            </div>
+                            <button onclick="cadastrarAlunoManual()" class="btn-primary">Cadastrar Aluno</button>
+                            <div id="cadastro-result" class="alert hidden"></div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label>Nome Completo</label>
-                            <input type="text" id="aluno-nome" placeholder="Ex: João da Silva">
+
+                    <!-- 2. Sincronizar Presenças do Leitor (Opção 5) -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-icon">🔄</span>
+                            <h2>Sincronizar Presenças do Leitor</h2>
                         </div>
-                        <div class="form-group">
-                            <label>Número do Cartão</label>
-                            <input type="number" id="aluno-cartao" placeholder="ID de 6 dígitos do cartão físico">
+                        <div class="card-body">
+                            <p class="desc-text">Sincroniza os cartões de acesso ativos e processa os dados de presenças mais recentes do leitor (arquivo <code>presenca.xlsx</code> local ou do Drive).</p>
+                            
+                            <button onclick="sincronizarPresencasLeitorWeb()" id="btn-sinc-leitor" class="btn-success width-100 font-bold" style="margin-bottom: 10px;">🔄 Processar Planilha do Leitor</button>
+                            
+                            <div id="sinc-leitor-spinner" class="spinner-container hidden">
+                                <span class="spinner"></span> Sincronizando presenças...
+                            </div>
+                            
+                            <!-- Console de logs de sincronização -->
+                            <div id="sinc-leitor-logs-container" class="hidden margin-top-10">
+                                <label class="font-bold" style="font-size: 0.85rem; color: #555;">Logs da Sincronização:</label>
+                                <div id="sinc-leitor-logs" style="background: #1e1e2e; color: #a6adc8; font-family: monospace; font-size: 0.85rem; padding: 12px; border-radius: 8px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; margin-top: 5px; border: 1px solid #313244; line-height: 1.4;"></div>
+                            </div>
                         </div>
-                        <button onclick="cadastrarAlunoManual()" class="btn-primary">Cadastrar Aluno</button>
-                        <div id="cadastro-result" class="alert hidden"></div>
+                    </div>
+
+                    <!-- 3. Modificar Dados de Presença / Ajuste de Horas (Opção 6) -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-icon">⏱️</span>
+                            <h2>Ajustar Horas de Presença</h2>
+                        </div>
+                        <div class="card-body">
+                            <p class="desc-text">Adicione ou remova horas de presença de alunos específicos através do número de seus cartões.</p>
+                            
+                            <div class="form-group">
+                                <label>Números dos Cartões</label>
+                                <input type="text" id="ajuste-cartoes" placeholder="Ex: 1, 5, 12 ou 't' para todos">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Tipo de Presença</label>
+                                <select id="ajuste-tipo" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px;">
+                                    <option value="e">Horas Efetivas (Presença Real)</option>
+                                    <option value="a">Horas Absolutas (Presença & Total)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Quantidade de Horas</label>
+                                <input type="number" id="ajuste-horas" step="0.1" placeholder="Ex: 2.5 ou -1.5">
+                            </div>
+                            
+                            <button onclick="modificarPresencaWeb()" class="btn-primary">Aplicar Ajuste de Horas</button>
+                            
+                            <!-- Detalhes do Ajuste de Horas -->
+                            <div id="ajuste-resultado-container" class="hidden margin-top-10">
+                                <label class="font-bold" style="font-size: 0.85rem; color: #555;">Resultado das Modificações:</label>
+                                <div id="ajuste-resultado-logs" style="background: #1e1e2e; color: #a6adc8; font-family: monospace; font-size: 0.85rem; padding: 12px; border-radius: 8px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; margin-top: 5px; border: 1px solid #313244; line-height: 1.4;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -212,6 +277,146 @@
                             <tr><td colspan="7" class="text-center text-muted">Carregando auditoria...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ABA 4: BUSCA AVANÇADA & RELATÓRIOS ================= -->
+        <div id="sec-busca" class="gestor-section hidden">
+            <!-- Controles Superiores da Busca -->
+            <div class="card margin-bottom-25">
+                <div class="card-header">
+                    <span class="card-icon">🔍</span>
+                    <h2>Filtros e Configurações de Busca Avançada</h2>
+                </div>
+                <div class="card-body">
+                    <div class="cards-grid-2col" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label>Tipo de Análise / Busca</label>
+                            <select id="busca-tipo-seletor" onchange="alternarTipoBusca()" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px;">
+                                <option value="individual">📋 Respostas de um Candidato/Aluno (Individual)</option>
+                                <option value="questao">📊 Respostas para uma Questão (Cruzada/Estatística)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Seletor 1: Lista de Alunos/Candidatos -->
+                        <div class="form-group" id="grupo-busca-candidato">
+                            <label>Selecione o Candidato/Aluno</label>
+                            <select id="busca-candidato-select" onchange="carregarRespostasCandidato()" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px;">
+                                <option value="">Selecione um candidato para ver o questionário...</option>
+                            </select>
+                        </div>
+
+                        <!-- Seletor 2: Lista de Questões -->
+                        <div class="form-group hidden" id="grupo-busca-questao">
+                            <label>Selecione a Questão de Interesse</label>
+                            <select id="busca-questao-select" onchange="carregarEstatisticasQuestao()" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px;">
+                                <option value="">Selecione uma questão do formulário...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel de Resultados 1: Respostas Individuais -->
+            <div id="painel-resultados-individual" class="card list-card">
+                <div class="card-header font-between">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="card-icon">📝</span>
+                        <h2>Questionário Socioeconômico do Candidato</h2>
+                    </div>
+                    <span id="detalhe-candidato-score" class="font-bold" style="background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 6px;">Score: -</span>
+                </div>
+                <div class="table-container">
+                    <table id="tabela-respostas-individual">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Nº Questão</th>
+                                <th>Pergunta</th>
+                                <th>Resposta Escolhida</th>
+                                <th style="width: 140px;">Pontos Obtidos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Selecione um candidato acima para carregar o questionário.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Painel de Resultados 2: Respostas Cruzadas/Estatísticas -->
+            <div id="painel-resultados-questao" class="hidden">
+                <!-- Seção Superior: Distribuição de Respostas -->
+                <div class="card" style="margin-bottom: 25px;">
+                    <div class="card-header">
+                        <span class="card-icon">📊</span>
+                        <h2>Distribuição Estatística de Respostas</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="estatisticas-questoes-cards" class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 0;">
+                            <!-- Injetado dinamicamente via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção Inferior: Lista de Alunos que Responderam -->
+                <div class="card list-card">
+                    <div class="card-header font-between">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="card-icon">👥</span>
+                            <h2>Discentes / Candidatos da Questão Selecionada</h2>
+                        </div>
+                        <div class="header-actions">
+                            <span id="filtro-opcao-badge" class="badge badge-warning hidden" style="margin-right: 10px; padding: 6px 12px;">Filtrado por: -</span>
+                            <button id="btn-limpar-filtro-opcao" onclick="limparFiltroOpcaoQuestao()" class="btn-refresh hidden" style="margin: 0;">🧹 Mostrar Todos</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-respostas-questao">
+                            <thead>
+                                <tr>
+                                    <th>Candidato / Discente</th>
+                                    <th>CPF</th>
+                                    <th>E-mail</th>
+                                    <th>Resposta Dada</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Selecione uma questão acima para carregar a listagem.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= EXPORTADOR PERSONALIZADO (OPÇÃO 4) ================= -->
+            <div class="card margin-bottom-25" style="margin-top: 25px;">
+                <div class="card-header font-between">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="card-icon">📥</span>
+                        <h2>Gerar e Exportar Lista de Dados Personalizada</h2>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="desc-text">Selecione as questões do questionário socioeconômico que deseja incluir na exportação. O arquivo Excel gerado conterá os nomes de todos os candidatos em letras maiúsculas e suas respectivas respostas às questões selecionadas.</p>
+                    
+                    <div class="form-group">
+                        <label class="font-bold">Selecione as Questões para Incluir:</label>
+                        <div id="exportar-questoes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; max-height: 250px; overflow-y: auto; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; background: #f8fafc; margin-top: 10px;">
+                            <div class="text-center text-muted" style="grid-column: 1 / -1;">Carregando questões do questionário...</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                        <button onclick="selecionarTodasQuestoesExport()" class="btn-info" style="margin-bottom: 0;">Selecionar Todas</button>
+                        <button onclick="limparSelecaoQuestoesExport()" class="btn-refresh" style="margin-bottom: 0;">Limpar Seleção</button>
+                        <button onclick="exportarListaDadosWeb()" class="btn-success font-bold" style="margin-left: auto; margin-bottom: 0;">📥 Gerar Lista de Dados (Excel)</button>
+                    </div>
                 </div>
             </div>
         </div>

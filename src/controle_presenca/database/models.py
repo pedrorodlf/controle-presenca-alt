@@ -54,6 +54,8 @@ class PontuacaoQuestionario(Base):
     id = Column(Integer, primary_key=True, index=True)
     candidato_id = Column(Integer, ForeignKey('candidatos.id'))
     questao = Column(String(255))
+    resposta = Column(String(500), nullable=True)
+    pergunta_numero = Column(Integer, nullable=True)
     pontos = Column(Float)
 
 class HistoricoStatusCandidato(Base):

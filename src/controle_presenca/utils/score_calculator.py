@@ -54,25 +54,31 @@ class ScoreCalculator:
         Calcula a pontuação socioeconômica total com base em um dicionário
         de respostas do candidato, mapeando {numero_questao: alternativa_escolhida}.
         """
+        detalhes = cls.calcular_detalhes(respostas)
+        return sum(d["pontos"] for d in detalhes.values())
+
+    @classmethod
+    def calcular_detalhes(cls, respostas: Dict[int, str]) -> Dict[int, Dict[str, Any]]:
+        """
+        Calcula a pontuação de cada questão individualmente,
+        retornando mapeamento {numero_questao: {"resposta": resposta_dada, "pontos": pontos_calculados}}.
+        """
         criterios = cls._carregar_criterios()
-        score_total = 0.0
+        detalhes = {}
 
         for q_num, resposta in respostas.items():
+            pts = 0.0
+            resp_clean = str(resposta).strip() if resposta is not None else ""
             if q_num in criterios:
-                resp_clean = str(resposta).strip() if resposta is not None else ""
-                # Tenta match exato ou parcial para tolerar pequenas diferenças de formatação
                 if resp_clean in criterios[q_num]:
-                    score_total += criterios[q_num][resp_clean]
+                    pts = criterios[q_num][resp_clean]
                 else:
-                    # Match case-insensitive e strip-tolerant como fallback
                     matched = False
                     for key, val in criterios[q_num].items():
                         if key.lower() == resp_clean.lower():
-                            score_total += val
+                            pts = val
                             matched = True
                             break
-                    # Se não deu match, 0 pontos para esta questão
-                    if not matched:
-                        pass
+            detalhes[q_num] = {"resposta": resp_clean, "pontos": pts}
 
-        return score_total
+        return detalhes
