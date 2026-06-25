@@ -24,17 +24,17 @@ services:
       - "8000:8000"
     # A SOLUÇÃO ESTÁ AQUI: Ignora a trava de usuário apenas no ambiente local
     user: "root"
-    command: bash /app/scripts/entrypoint.sh
+    command: uvicorn src.controle_presenca.api.main:app --host 0.0.0.0 --port 8000 --reload
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: explicaaso_pgadmin
+    container_name: cursinho_popular
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@explicaaso.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5050:80"
+      - "5051:80"
     depends_on:
       - db
 
